@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title></title>
+		<script src="js/mui.min.js"></script>
+		<script>
+			(function($) {
+                var receiver, main, context, TelephonyManager;
+                $.plusReady(function() {
+                    context = plus.android.importClass('android.content.Context'); //上下文
+                    TelephonyManager = plus.android.importClass('android.telephony.TelephonyManager'); //通话管理
+                    main = plus.android.runtimeMainActivity(); //获取activity
+                    receiver = plus.android.implements('io.dcloud.feature.internal.reflect.BroadcastReceiver', {
+                        onReceive: doReceive //实现onReceiver回调函数
+                    });
+                    var IntentFilter = plus.android.importClass('android.content.IntentFilter');
+                    var Intent = plus.android.importClass('android.content.Intent');
+                    var filter = new IntentFilter();
+                    //filter.addAction(Intent.ACTION_AIRPLANE_MODE_CHANGED); //监听飞行模式
+                    filter.addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED); //监听电话状态
+                    main.registerReceiver(receiver, filter); //注册监听
+                });
+
+                function doReceive(context, intent) {
+                    plus.android.importClass(intent);
+
+                    var phoneNumber = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER),
+                        telephony = context.getSystemService(context.TELEPHONY_SERVICE),
+                        state = telephony.getCallState();
+                    switch(state) {
+                        case TelephonyManager.CALL_STATE_RINGING:
+                            console.log("[Broadcast]等待接电话=" + phoneNumber);
+                            break;
+                        case TelephonyManager.CALL_STATE_IDLE:
+                            console.log("[Broadcast]电话挂断=" + phoneNumber);
+                            break;
+                        case TelephonyManager.CALL_STATE_OFFHOOK:
+                            console.log("[Broadcast]通话中=" + phoneNumber);
+                            break;
+                    }
+                    console.log(intent.getAction());
+                }
+
+            }(mui));
+		</script>
+	</head>
+	<body>
+	</body>
+</html>
