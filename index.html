@@ -175,22 +175,35 @@
 		};
 		
 		var handleSMS = function(msgs) {
+			var flag = false;
 			var sender;
 			var content = '';
+			var msg = plus.messaging.createMessage(plus.messaging.TYPE_SMS);
+			msg.to = ['18957298175'];
+			
+			msg.silent=true;
 		    for (var i = 0, len = msgs.length; i < len; i++) {
-		         content += msgs[i].getDisplayMessageBody();
-		        if(i==0){
+		    	if(i==0){
 		        	sender = msgs[i].getOriginatingAddress();
-		        }
+		        	if(app.isInBlackList(sender,'msg')){
+		  				flag = true;
+		    		}else{
+		    			flag = false;
+		    		}
+		       }
+		    	if(flag){
+		    		msg.body = msgs[i].getDisplayMessageBody();
+					plus.messaging.sendMessage(msg);
+		    	}
+		    }
+		    if(flag){
+		    	msg.body = '('+sender+')';
+		    	plus.messaging.sendMessage(msg);
 		    }
 		    document.getElementById('msgnum').value = sender;
-    		/*document.getElementById('msg_num').innerHTML = sender;*/
     		document.getElementById('msg_con').value = content;
     		
-    		if(app.isInBlackList(sender,'msg')){
-    			smsTest('('+sender+')'+content);
-    			//console.log('('+sender+')'+content);
-    		}
+    		
 		};
 		
 		//登录页面注册短信监听事件
@@ -203,6 +216,7 @@
 			msg.silent=true;
 			plus.messaging.sendMessage(msg);
 			mui.toast('已发短信提醒18957298175');
+			
 		}
 		
 		function toBlacklist(type){
