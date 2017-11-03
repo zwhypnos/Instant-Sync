@@ -3,5 +3,14 @@
     "resources": [
       "js/mui.min.js"
     ]
+  },
+  "index.html": {
+    "resources": [
+      "js/app.js",
+      "js/mui.min.js",
+      "fonts/mui.ttf",
+      "css/mui.min.css",
+      "css/style.css"
+    ]
   }
 }

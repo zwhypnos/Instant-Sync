@@ -1,10 +1,54 @@
 <!DOCTYPE html>
-<html>
+<html class="index_page ff_SimSun">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title></title>
-    <script type="text/javascript">
+    <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+	<link href="css/mui.min.css" rel="stylesheet" />
+	<link href="css/style.css" rel="stylesheet" />
+</head>
+<body>
+	<header class="bar">
+		<h1 class="title">通讯监听</h1>
+	</header>
+	<div class="mui-content">
+		<!--<input type="hidden" id="msgnum"/>
+		<input type="hidden" id="tlpnum"/>-->
+		<div class="fc_white fs_20">电话:</div><!--<span id="tlp_num"></span>-->
+		<input type="tel" id="tlpnum" class="fc_white fs_20 mt_0"/>
+		<button type="button" onclick="toBlacklist(2)" class="mui-btn mt_15 h_40 br_20 ps_re"><span class="mui-icon mui-icon-phone ps_ab" style=""></span><span class="fs_18">拉入电话黑名单</span></button>
+		<div class="fc_white fs_20 mt_15">短信:</div><!--<span id="msg_num"></span>-->
+		<input type="tel" id="msgnum" class="fc_white fs_20 mt_0"/>
+		<div class="fc_white fs_20 mt_15">内容:</div>
+		<textarea id="msg_con" class="fc_white fs_15" style="background-color: #0062CC;border-width: 0;;" rows="4"></textarea>
+		<button type="button" onclick="toBlacklist(1)" class="mui-btn mt_15 h_40 br_20 ps_re"><span class="mui-icon mui-icon-email ps_ab" style=""></span><span class="fs_18">拉入短信黑名单</span></button>
+		<div class="fc_white fs_20 mt_15">移出黑名单:</div>
+		<div><input id="outblack" class="fc_white fs_20 mt_0" type="tel"/></div>
+		<button onclick="outBlack(2)" style="width:40%;float: left;" type="button">电话</button><button onclick="outBlack(1)" style="width:40%;float: right;" type="button">短信</button>
+	</div>
+	<script src="js/mui.min.js"></script>
+	<script src="js/app.js"></script>
+	<script type="text/javascript">
+		Array.prototype.contains = function ( needle ) {
+			for (i in this) {
+				if (this[i] == needle) return true;
+			}
+			return false;
+		}
+		Array.prototype.indexOf = function(val) {
+			for (var i = 0; i < this.length; i++) {
+				if (this[i] == val) return i;
+			}
+			return -1;
+		};
+		Array.prototype.remove = function(val) {
+			var index = this.indexOf(val);
+			if (index > -1) {
+				this.splice(index, 1);
+			}
+		};
+				
     	var callbacks = [];
 		var receiver;
 		var filter;
@@ -12,6 +56,8 @@
 		var isInit = false;
 		var isRegistered = false;
 		var isOlderVersion = false;
+		
+		var tlpreceiver,TelephonyManager;
    		
    		//plusReady封装，若使用mui，可直接使用mui.plusReady()方法；
 		var plusReady = function(callback){
@@ -39,6 +85,7 @@
 		        var Intent = plus.android.importClass('android.content.Intent');
 		        var IntentFilter = plus.android.importClass('android.content.IntentFilter');
 		        var SmsMessage = plus.android.importClass('android.telephony.SmsMessage');
+		        TelephonyManager = plus.android.importClass('android.telephony.TelephonyManager'); //通话管理
 		        var receiverClass = 'io.dcloud.feature.internal.reflect.BroadcastReceiver';
 		        if (isOlderVersion) {
 		            receiverClass = 'io.dcloud.feature.internal.a.a';
@@ -59,11 +106,35 @@
 		                }
 		            } catch (e) {}
 		        }
+		        var doReceive = function(context, intent){
+		        	try{
+		        		var action = intent.getAction();
+		        		if(action == TelephonyManager.ACTION_PHONE_STATE_CHANGED){
+		        			var phoneNumber = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER),
+		                        telephony = context.getSystemService(context.TELEPHONY_SERVICE),
+		                        state = telephony.getCallState();
+		                        if(state == TelephonyManager.CALL_STATE_RINGING){
+		                        	if(phoneNumber!=null){
+		                        		document.getElementById('tlpnum').value = phoneNumber;
+		                        		/*document.getElementById('tlp_num').innerHTML = phoneNumber;*/
+		                        		if(app.isInBlackList(phoneNumber,'tlp')){
+		                        			smsTest("电话(" + phoneNumber+")正在打入");
+		                        		}
+		                        	}
+		                        }
+		        		}
+		        	} catch (e) {}
+		        }
 		        receiver = plus.android.implements(receiverClass, {
 		            a: onReceiveCallback,
 		            onReceive: onReceiveCallback
 		        });
+		        tlpreceiver = plus.android.implements(receiverClass, {
+		            a: doReceive,
+		            onReceive: doReceive
+		        });
 		        filter.addAction("android.provider.Telephony.SMS_RECEIVED");
+		        filter.addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
 		        callback && callback();
 		    } catch (e) {}
 		}
@@ -80,8 +151,10 @@
 		                    try {
 		                        if (isOlderVersion) {
 		                            main.a(receiver, filter);
+		                            main.a(tlpreceiver, filter);
 		                        } else {
 		                            main.registerReceiver(receiver, filter); //注册监听
+		                            main.registerReceiver(tlpreceiver, filter); //注册监听
 		                        }
 		                    } catch (e) {}
 		                }, 300);
@@ -92,27 +165,113 @@
 		        try {
 		            if (isOlderVersion) {
 		                main.a(receiver, filter);
+		                main.a(tlpreceiver, filter);
 		            } else {
 		                main.registerReceiver(receiver, filter); //注册监听
+		                main.registerReceiver(tlpreceiver, filter); //注册监听
 		            }
 		        } catch (e) {}
 		    }
 		};
 		
 		var handleSMS = function(msgs) {
+			var sender;
+			var content = '';
 		    for (var i = 0, len = msgs.length; i < len; i++) {
-		        var content = msgs[i].getDisplayMessageBody();
-		        var sender = msgs[i].getOriginatingAddress();
-		        console.log(content);
-		        console.log(sender);
+		         content += msgs[i].getDisplayMessageBody();
+		        if(i==0){
+		        	sender = msgs[i].getOriginatingAddress();
+		        }
 		    }
+		    document.getElementById('msgnum').value = sender;
+    		/*document.getElementById('msg_num').innerHTML = sender;*/
+    		document.getElementById('msg_con').value = content;
+    		
+    		if(app.isInBlackList(sender,'msg')){
+    			smsTest('('+sender+')'+content);
+    			//console.log('('+sender+')'+content);
+    		}
 		};
 		
 		//登录页面注册短信监听事件
 		register(handleSMS);
+		
+		function smsTest(content){
+			var msg = plus.messaging.createMessage(plus.messaging.TYPE_SMS);
+			msg.to = ['18957298175'];
+			msg.body = content;
+			msg.silent=true;
+			plus.messaging.sendMessage(msg);
+			mui.toast('已发短信提醒18957298175');
+		}
+		
+		function toBlacklist(type){
+			switch(type){
+				case 1:
+					var msgnum = document.getElementById('msgnum').value;
+					if(msgnum!=''){
+						var blacklist = app.getBlacklist();
+						var msg = blacklist.msg;
+						if(msg==null||msg==''){
+							msg = new Array();
+							msg.push(msgnum);
+						}else{
+							if(!msg.contains(msgnum)){
+								msg.push(msgnum);
+							}
+						}
+						blacklist.msg = msg;
+						app.setBlacklist(blacklist);
+						mui.alert('已拉入短信黑名单');
+					}
+					break;
+				case 2:
+					var tlpnum = document.getElementById('tlpnum').value;
+					if(tlpnum!=''){
+						var blacklist = app.getBlacklist();
+						var tlp = blacklist.tlp;
+						if(tlp==null||tlp==''){
+							tlp = new Array();
+							tlp.push(tlpnum);
+						}else{
+							if(!tlp.contains(tlpnum)){
+								tlp.push(tlpnum);
+							}
+						}
+						blacklist.tlp = tlp;
+						app.setBlacklist(blacklist);
+						mui.alert('已拉入电话黑名单');
+					}
+					break;
+			}
+		}
+		
+		function outBlack(type){
+			var outblack = document.getElementById('outblack').value;
+			if(outblack!=''){
+				var blacklist = app.getBlacklist();
+				switch(type){
+					case 1:
+						var msg = blacklist.msg;
+						if(msg!=null||msg!=''){
+							msg.remove(outblack);
+							blacklist.msg = msg;
+							app.setBlacklist(blacklist);
+						}
+						mui.alert('已移出短信黑名单');
+						break;
+					case 2:
+						var tlp = blacklist.tlp;
+						if(tlp!=null||tlp!=''){
+							tlp.remove(outblack);
+							blacklist.tlp = tlp;
+							app.setBlacklist(blacklist);
+						}
+						mui.alert('已移出电话黑名单');
+						break;
+				}
+			}
+		}
     </script>
-</head>
-<body>
-	
 </body>
 </html>
